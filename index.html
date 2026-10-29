@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>機率轉盤</title>
+<style>
+:root{--bg:#f6f4ef;--fg:#222;--card:#fff;--mut:#777;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1c1b19;--fg:#eee;--card:#2a2926;--mut:#aaa}}
+:root[data-theme="dark"]{--bg:#1c1b19;--fg:#eee;--card:#2a2926;--mut:#aaa}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,"Noto Sans TC","PingFang TC",sans-serif;display:flex;flex-direction:column;align-items:center;padding:16px}
+h1{font-size:22px;margin:8px 0}
+#wrap{position:relative;width:min(88vw,460px);aspect-ratio:1}
+#ptr{position:absolute;left:50%;top:-6px;transform:translateX(-50%);width:0;height:0;border-left:14px solid transparent;border-right:14px solid transparent;border-top:28px solid #d62828;z-index:2;filter:drop-shadow(0 2px 2px #0004)}
+canvas{width:100%;height:100%;transition:transform 5s cubic-bezier(.12,.6,.1,1)}
+#go{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:76px;height:76px;border-radius:50%;border:4px solid #fff;background:#d62828;color:#fff;font-size:18px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px #0005}
+#go:disabled{opacity:.6;cursor:default}
+#res{font-size:30px;font-weight:700;margin:18px 0 6px;min-height:40px}
+.box{background:var(--card);border-radius:12px;padding:12px 16px;width:min(88vw,460px);box-sizing:border-box;margin-top:10px;font-size:14px}
+table{width:100%;border-collapse:collapse}td,th{padding:4px;text-align:center}th{color:var(--mut);font-weight:500}
+#hist{color:var(--mut);word-break:break-all}
+</style></head><body>
+<h1>機率轉盤</h1>
+<div id="wrap"><div id="ptr"></div><canvas id="c"></canvas><button id="go">轉！</button></div>
+<div id="res">按下「轉」開始</div>
+<div class="box"><table id="tb"></table></div>
+<div class="box">紀錄：<span id="hist">—</span></div>
+<script>
+// ===== 設定區：20格的排列（500元在 0 與 10，即上下對位）=====
+const SLOTS=[500,50,100,50,200,50,100,50,50,100,500,50,100,50,200,50,100,50,200,50];
+const COLORS={50:'#8ecae6',100:'#ffb703',200:'#90be6d',500:'#e63946'};
+const N=SLOTS.length,A=360/N;
+const cv=document.getElementById('c'),go=document.getElementById('go');
+const S=Math.min(460,window.innerWidth*.88)*(window.devicePixelRatio||1);
+cv.width=cv.height=S;
+const g=cv.getContext('2d'),R=S/2;
+SLOTS.forEach((v,i)=>{
+  const a0=(i*A-A/2-90)*Math.PI/180,a1=(i*A+A/2-90)*Math.PI/180;
+  g.beginPath();g.moveTo(R,R);g.arc(R,R,R-4,a0,a1);g.closePath();
+  g.fillStyle=COLORS[v];g.fill();g.strokeStyle='#fff';g.lineWidth=2;g.stroke();
+  g.save();g.translate(R,R);g.rotate(i*A*Math.PI/180);
+  g.fillStyle='#222';g.font='bold '+(S/22)+'px sans-serif';g.textAlign='center';g.textBaseline='middle';
+  g.fillText(v,0,-R*.78);g.restore();
+});
+let rot=0,busy=false,count={},total=0,hist=[];
+function render(){
+  const vals=[50,100,200,500];
+  let h='<tr><th>金額</th><th>格數</th><th>理論機率</th><th>已中次數</th></tr>';
+  vals.forEach(v=>{const n=SLOTS.filter(x=>x===v).length;
+    h+=`<tr><td>${v}元</td><td>${n}</td><td>${(n/N*100)}%</td><td>${count[v]||0}</td></tr>`});
+  document.getElementById('tb').innerHTML=h;
+}
+render();
+go.onclick=()=>{
+  if(busy)return;busy=true;go.disabled=true;
+  const i=Math.floor(Math.random()*N);            // 每格機率相同 = 依格數決定機率
+  const jitter=(Math.random()-.5)*A*.7;           // 在格子內隨機停位置
+  const turns=5+Math.floor(Math.random()*3);
+  const base=Math.ceil(rot/360)*360;
+  rot=base+turns*360+((360-i*A)%360)+jitter;
+  cv.style.transform=`rotate(${rot}deg)`;
+  document.getElementById('res').textContent='…';
+  setTimeout(()=>{
+    const v=SLOTS[i];count[v]=(count[v]||0)+1;hist.unshift(v);
+    document.getElementById('res').textContent='🎉 '+v+' 元';
+    document.getElementById('hist').textContent=hist.slice(0,20).join('、');
+    render();busy=false;go.disabled=false;
+  },5100);
+};
+</script></body></html>
